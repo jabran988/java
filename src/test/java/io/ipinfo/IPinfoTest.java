@@ -1,15 +1,13 @@
 package io.ipinfo;
 
 import io.ipinfo.api.IPinfo;
-import io.ipinfo.api.errors.ErrorResponseException;
 import io.ipinfo.api.errors.RateLimitedException;
 import io.ipinfo.api.model.ASNResponse;
 import io.ipinfo.api.model.IPResponse;
-import org.junit.jupiter.api.BeforeEach;
+import io.ipinfo.api.model.ResproxyResponse;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -262,6 +260,72 @@ public class IPinfoTest {
                     () -> assertEquals("mail.mil", res2.getDomain(), "domain mismatch"),
                     () -> assertNotNull(res2.getNumIps(), "num IPs should be set"),
                     () -> assertEquals("government", res2.getType(), "type mismatch")
+            );
+        } catch (RateLimitedException e) {
+            fail(e);
+        }
+    }
+
+    @Test
+    public void testLookupResproxy() {
+        IPinfo ii = new IPinfo.Builder()
+            .setToken(System.getenv("IPINFO_TOKEN"))
+            .build();
+
+        try {
+            ResproxyResponse response = ii.lookupResproxy("175.107.211.204");
+            assertAll(
+                "175.107.211.204",
+                () ->
+                    assertEquals(
+                        "175.107.211.204",
+                        response.getIp(),
+                        "IP mismatch"
+                    ),
+                () ->
+                    assertNotNull(
+                        response.getLastSeen(),
+                        "lastSeen should be set"
+                    ),
+                () ->
+                    assertNotNull(
+                        response.getPercentDaysSeen(),
+                        "percentDaysSeen should be set"
+                    ),
+                () ->
+                    assertNotNull(
+                        response.getService(),
+                        "service should be set"
+                    )
+            );
+        } catch (RateLimitedException e) {
+            fail(e);
+        }
+    }
+
+    @Test
+    public void testLookupResproxyEmpty() {
+        IPinfo ii = new IPinfo.Builder()
+            .setToken(System.getenv("IPINFO_TOKEN"))
+            .build();
+
+        try {
+            ResproxyResponse response = ii.lookupResproxy("8.8.8.8");
+            assertAll(
+                "8.8.8.8 resproxy empty",
+                () -> assertNull(response.getIp(), "IP should be null"),
+                () ->
+                    assertNull(
+                        response.getLastSeen(),
+                        "lastSeen should be null"
+                    ),
+                () ->
+                    assertNull(
+                        response.getPercentDaysSeen(),
+                        "percentDaysSeen should be null"
+                    ),
+                () ->
+                    assertNull(response.getService(), "service should be null")
             );
         } catch (RateLimitedException e) {
             fail(e);

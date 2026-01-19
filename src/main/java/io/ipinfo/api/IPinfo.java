@@ -10,12 +10,11 @@ import io.ipinfo.api.errors.RateLimitedException;
 import io.ipinfo.api.model.ASNResponse;
 import io.ipinfo.api.model.IPResponse;
 import io.ipinfo.api.model.MapResponse;
+import io.ipinfo.api.model.ResproxyResponse;
 import io.ipinfo.api.request.ASNRequest;
 import io.ipinfo.api.request.IPRequest;
 import io.ipinfo.api.request.MapRequest;
-import okhttp3.*;
-
-import javax.annotation.ParametersAreNonnullByDefault;
+import io.ipinfo.api.request.ResproxyRequest;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -26,15 +25,19 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+import javax.annotation.ParametersAreNonnullByDefault;
+import okhttp3.*;
 
 public class IPinfo {
+
     private static final int batchMaxSize = 1000;
     private static final int batchReqTimeoutDefault = 5;
-    private static final BatchReqOpts defaultBatchReqOpts = new BatchReqOpts.Builder()
+    private static final BatchReqOpts defaultBatchReqOpts =
+        new BatchReqOpts.Builder()
             .setBatchSize(batchMaxSize)
             .setTimeoutPerBatch(batchReqTimeoutDefault)
             .build();
-    private final static Gson gson = new Gson();
+    private static final Gson gson = new Gson();
 
     private final OkHttpClient client;
     private final Context context;
@@ -49,7 +52,9 @@ public class IPinfo {
     }
 
     public static void main(String... args) {
-        System.out.println("This library is not meant to be run as a standalone jar.");
+        System.out.println(
+            "This library is not meant to be run as a standalone jar."
+        );
         System.exit(0);
     }
 
@@ -61,7 +66,7 @@ public class IPinfo {
      * @throws RateLimitedException an exception when your api key has been rate limited.
      */
     public IPResponse lookupIP(String ip) throws RateLimitedException {
-        IPResponse response = (IPResponse)cache.get(cacheKey(ip));
+        IPResponse response = (IPResponse) cache.get(cacheKey(ip));
         if (response != null) {
             return response;
         }
@@ -81,7 +86,7 @@ public class IPinfo {
      * @throws RateLimitedException an exception when your api key has been rate limited.
      */
     public ASNResponse lookupASN(String asn) throws RateLimitedException {
-        ASNResponse response = (ASNResponse)cache.get(cacheKey(asn));
+        ASNResponse response = (ASNResponse) cache.get(cacheKey(asn));
         if (response != null) {
             return response;
         }
@@ -90,6 +95,29 @@ public class IPinfo {
         response.setContext(context);
 
         cache.set(cacheKey(asn), response);
+        return response;
+    }
+
+    /**
+     * Lookup residential proxy information using the IP.
+     *
+     * @param ip the ip string to lookup - accepts both ipv4 and ipv6.
+     * @return ResproxyResponse response from the api.
+     * @throws RateLimitedException an exception when your api key has been rate limited.
+     */
+    public ResproxyResponse lookupResproxy(String ip)
+        throws RateLimitedException {
+        String cacheKeyStr = "resproxy:" + ip;
+        ResproxyResponse response = (ResproxyResponse) cache.get(
+            cacheKey(cacheKeyStr)
+        );
+        if (response != null) {
+            return response;
+        }
+
+        response = new ResproxyRequest(client, token, ip).handle();
+
+        cache.set(cacheKey(cacheKeyStr), response);
         return response;
     }
 
@@ -112,9 +140,8 @@ public class IPinfo {
      * @return the result where each URL is the key and the value is the data for that URL.
      * @throws RateLimitedException an exception when your API key has been rate limited.
      */
-    public ConcurrentHashMap<String, Object> getBatch(
-            List<String> urls
-    ) throws RateLimitedException {
+    public ConcurrentHashMap<String, Object> getBatch(List<String> urls)
+        throws RateLimitedException {
         return this.getBatchGeneric(urls, defaultBatchReqOpts);
     }
 
@@ -127,8 +154,8 @@ public class IPinfo {
      * @throws RateLimitedException an exception when your API key has been rate limited.
      */
     public ConcurrentHashMap<String, Object> getBatch(
-            List<String> urls,
-            BatchReqOpts opts
+        List<String> urls,
+        BatchReqOpts opts
     ) throws RateLimitedException {
         return this.getBatchGeneric(urls, opts);
     }
@@ -140,10 +167,11 @@ public class IPinfo {
      * @return the result where each IP is the key and the value is the data for that IP.
      * @throws RateLimitedException an exception when your API key has been rate limited.
      */
-    public ConcurrentHashMap<String, IPResponse> getBatchIps(
-            List<String> ips
-    ) throws RateLimitedException {
-        return new ConcurrentHashMap(this.getBatchGeneric(ips, defaultBatchReqOpts));
+    public ConcurrentHashMap<String, IPResponse> getBatchIps(List<String> ips)
+        throws RateLimitedException {
+        return new ConcurrentHashMap(
+            this.getBatchGeneric(ips, defaultBatchReqOpts)
+        );
     }
 
     /**
@@ -155,8 +183,8 @@ public class IPinfo {
      * @throws RateLimitedException an exception when your API key has been rate limited.
      */
     public ConcurrentHashMap<String, IPResponse> getBatchIps(
-            List<String> ips,
-            BatchReqOpts opts
+        List<String> ips,
+        BatchReqOpts opts
     ) throws RateLimitedException {
         return new ConcurrentHashMap(this.getBatchGeneric(ips, opts));
     }
@@ -169,9 +197,11 @@ public class IPinfo {
      * @throws RateLimitedException an exception when your API key has been rate limited.
      */
     public ConcurrentHashMap<String, ASNResponse> getBatchAsns(
-            List<String> asns
+        List<String> asns
     ) throws RateLimitedException {
-        return new ConcurrentHashMap(this.getBatchGeneric(asns, defaultBatchReqOpts));
+        return new ConcurrentHashMap(
+            this.getBatchGeneric(asns, defaultBatchReqOpts)
+        );
     }
 
     /**
@@ -183,15 +213,15 @@ public class IPinfo {
      * @throws RateLimitedException an exception when your API key has been rate limited.
      */
     public ConcurrentHashMap<String, ASNResponse> getBatchAsns(
-            List<String> asns,
-            BatchReqOpts opts
+        List<String> asns,
+        BatchReqOpts opts
     ) throws RateLimitedException {
         return new ConcurrentHashMap(this.getBatchGeneric(asns, opts));
     }
 
     private ConcurrentHashMap<String, Object> getBatchGeneric(
-            List<String> urls,
-            BatchReqOpts opts
+        List<String> urls,
+        BatchReqOpts opts
     ) throws RateLimitedException {
         int batchSize;
         int timeoutPerBatch;
@@ -201,7 +231,7 @@ public class IPinfo {
         // if the cache is available, filter out URLs already cached.
         result = new ConcurrentHashMap<>(urls.size());
         if (this.cache != null) {
-            lookupUrls = new ArrayList<>(urls.size()/2);
+            lookupUrls = new ArrayList<>(urls.size() / 2);
             for (String url : urls) {
                 Object val = cache.get(cacheKey(url));
                 if (val != null) {
@@ -244,12 +274,14 @@ public class IPinfo {
 
         // prepare latch & common request.
         // each request, when complete, will countdown the latch.
-        CountDownLatch latch = new CountDownLatch((int)Math.ceil(lookupUrls.size()/1000.0));
+        CountDownLatch latch = new CountDownLatch(
+            (int) Math.ceil(lookupUrls.size() / 1000.0)
+        );
         Request.Builder reqCommon = new Request.Builder()
-                .url(postUrl)
-                .addHeader("Content-Type", "application/json")
-                .addHeader("Authorization", Credentials.basic(token, ""))
-                .addHeader("User-Agent", "IPinfoClient/Java/3.2.0");
+            .url(postUrl)
+            .addHeader("Content-Type", "application/json")
+            .addHeader("Authorization", Credentials.basic(token, ""))
+            .addHeader("User-Agent", "IPinfoClient/Java/3.2.0");
 
         for (int i = 0; i < lookupUrls.size(); i += batchSize) {
             // create chunk.
@@ -263,49 +295,72 @@ public class IPinfo {
             String urlListJson = gson.toJson(urlsChunk);
             RequestBody requestBody = RequestBody.create(null, urlListJson);
             Request req = reqCommon.post(requestBody).build();
-            OkHttpClient chunkClient = client.newBuilder()
-                    .connectTimeout(timeoutPerBatch, TimeUnit.SECONDS)
-                    .readTimeout(timeoutPerBatch, TimeUnit.SECONDS)
-                    .build();
-            chunkClient.newCall(req).enqueue(new Callback() {
-                @Override
-                @ParametersAreNonnullByDefault
-                public void onFailure(Call call, IOException e) {
-                    latch.countDown();
-                }
-
-                @Override
-                @ParametersAreNonnullByDefault
-                public void onResponse(Call call, Response response) throws IOException {
-                    if (response.body() == null || response.code() == 429) {
-                        return;
-                    }
-
-                    Type respType = new TypeToken<HashMap<String, Object>>() {}.getType();
-                    HashMap<String, Object> localResult
-                            = gson.fromJson(response.body().string(), respType);
-                    localResult.forEach(new BiConsumer<String, Object>() {
+            OkHttpClient chunkClient = client
+                .newBuilder()
+                .connectTimeout(timeoutPerBatch, TimeUnit.SECONDS)
+                .readTimeout(timeoutPerBatch, TimeUnit.SECONDS)
+                .build();
+            chunkClient
+                .newCall(req)
+                .enqueue(
+                    new Callback() {
                         @Override
-                        public void accept(String k, Object v) {
-                            if (k.startsWith("AS")) {
-                                String vStr = gson.toJson(v);
-                                ASNResponse vCasted = gson.fromJson(vStr, ASNResponse.class);
-                                vCasted.setContext(context);
-                                result.put(k, vCasted);
-                            } else if (InetAddresses.isInetAddress(k)) {
-                                String vStr = gson.toJson(v);
-                                IPResponse vCasted = gson.fromJson(vStr, IPResponse.class);
-                                vCasted.setContext(context);
-                                result.put(k, vCasted);
-                            } else {
-                                result.put(k, v);
-                            }
+                        @ParametersAreNonnullByDefault
+                        public void onFailure(Call call, IOException e) {
+                            latch.countDown();
                         }
-                    });
 
-                    latch.countDown();
-                }
-            });
+                        @Override
+                        @ParametersAreNonnullByDefault
+                        public void onResponse(Call call, Response response)
+                            throws IOException {
+                            if (
+                                response.body() == null ||
+                                response.code() == 429
+                            ) {
+                                return;
+                            }
+
+                            Type respType = new TypeToken<
+                                HashMap<String, Object>
+                            >() {}.getType();
+                            HashMap<String, Object> localResult = gson.fromJson(
+                                response.body().string(),
+                                respType
+                            );
+                            localResult.forEach(
+                                new BiConsumer<String, Object>() {
+                                    @Override
+                                    public void accept(String k, Object v) {
+                                        if (k.startsWith("AS")) {
+                                            String vStr = gson.toJson(v);
+                                            ASNResponse vCasted = gson.fromJson(
+                                                vStr,
+                                                ASNResponse.class
+                                            );
+                                            vCasted.setContext(context);
+                                            result.put(k, vCasted);
+                                        } else if (
+                                            InetAddresses.isInetAddress(k)
+                                        ) {
+                                            String vStr = gson.toJson(v);
+                                            IPResponse vCasted = gson.fromJson(
+                                                vStr,
+                                                IPResponse.class
+                                            );
+                                            vCasted.setContext(context);
+                                            result.put(k, vCasted);
+                                        } else {
+                                            result.put(k, v);
+                                        }
+                                    }
+                                }
+                            );
+
+                            latch.countDown();
+                        }
+                    }
+                );
         }
 
         // wait for all requests to finish.
@@ -313,7 +368,10 @@ public class IPinfo {
             if (opts.timeoutTotal == 0) {
                 latch.await();
             } else {
-                boolean success = latch.await(opts.timeoutTotal, TimeUnit.SECONDS);
+                boolean success = latch.await(
+                    opts.timeoutTotal,
+                    TimeUnit.SECONDS
+                );
                 if (!success) {
                     if (result.size() == 0) {
                         return null;
@@ -350,10 +408,11 @@ public class IPinfo {
      * @return the versioned cache key.
      */
     public static String cacheKey(String k) {
-        return k+":1";
+        return k + ":1";
     }
 
     public static class Builder {
+
         private OkHttpClient client = new OkHttpClient.Builder().build();
         private String token = "";
         private Cache cache = new SimpleCache(Duration.ofDays(1));
@@ -379,16 +438,17 @@ public class IPinfo {
     }
 
     public static class BatchReqOpts {
+
         public final int batchSize;
         public final int timeoutPerBatch;
         public final int timeoutTotal;
         public final boolean filter;
 
         public BatchReqOpts(
-                int batchSize,
-                int timeoutPerBatch,
-                int timeoutTotal,
-                boolean filter
+            int batchSize,
+            int timeoutPerBatch,
+            int timeoutTotal,
+            boolean filter
         ) {
             this.batchSize = batchSize;
             this.timeoutPerBatch = timeoutPerBatch;
@@ -397,6 +457,7 @@ public class IPinfo {
         }
 
         public static class Builder {
+
             private int batchSize = 1000;
             private int timeoutPerBatch = 5;
             private int timeoutTotal = 0;
@@ -462,7 +523,12 @@ public class IPinfo {
             }
 
             public IPinfo.BatchReqOpts build() {
-                return new IPinfo.BatchReqOpts(batchSize, timeoutPerBatch, timeoutTotal, filter);
+                return new IPinfo.BatchReqOpts(
+                    batchSize,
+                    timeoutPerBatch,
+                    timeoutTotal,
+                    filter
+                );
             }
         }
     }

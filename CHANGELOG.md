@@ -1,3 +1,7 @@
+# 3.3.0
+
+- Add support for Residential Proxy Detection API
+
 # 3.2.0
 
 - Add support for IPinfo Core API

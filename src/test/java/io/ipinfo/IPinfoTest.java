@@ -5,9 +5,13 @@ import io.ipinfo.api.errors.RateLimitedException;
 import io.ipinfo.api.model.ASNResponse;
 import io.ipinfo.api.model.IPResponse;
 import io.ipinfo.api.model.ResproxyResponse;
+import okhttp3.OkHttpClient;
+import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -267,9 +271,32 @@ public class IPinfoTest {
     }
 
     @Test
-    public void testLookupResproxy() {
+    public void testLookupResproxy() throws IOException {
+        MockWebServer server = new MockWebServer();
+        String mockResponseBody = "{\"ip\":\"175.107.211.204\",\"last_seen\":\"2025-01-20\",\"percent_days_seen\":0.85,\"service\":\"example_service\"}";
+        server.enqueue(new MockResponse()
+            .setBody(mockResponseBody)
+            .addHeader("Content-Type", "application/json"));
+        server.start();
+
+        OkHttpClient client = new OkHttpClient.Builder()
+            .addInterceptor(chain -> {
+                okhttp3.Request originalRequest = chain.request();
+                okhttp3.HttpUrl newUrl = originalRequest.url().newBuilder()
+                    .scheme("http")
+                    .host(server.getHostName())
+                    .port(server.getPort())
+                    .build();
+                okhttp3.Request newRequest = originalRequest.newBuilder()
+                    .url(newUrl)
+                    .build();
+                return chain.proceed(newRequest);
+            })
+            .build();
+
         IPinfo ii = new IPinfo.Builder()
-            .setToken(System.getenv("IPINFO_TOKEN"))
+            .setToken("test_token")
+            .setClient(client)
             .build();
 
         try {
@@ -283,30 +310,58 @@ public class IPinfoTest {
                         "IP mismatch"
                     ),
                 () ->
-                    assertNotNull(
+                    assertEquals(
+                        "2025-01-20",
                         response.getLastSeen(),
-                        "lastSeen should be set"
+                        "lastSeen mismatch"
                     ),
                 () ->
-                    assertNotNull(
+                    assertEquals(
+                        Double.valueOf(0.85),
                         response.getPercentDaysSeen(),
-                        "percentDaysSeen should be set"
+                        "percentDaysSeen mismatch"
                     ),
                 () ->
-                    assertNotNull(
+                    assertEquals(
+                        "example_service",
                         response.getService(),
-                        "service should be set"
+                        "service mismatch"
                     )
             );
         } catch (RateLimitedException e) {
             fail(e);
+        } finally {
+            server.shutdown();
         }
     }
 
     @Test
-    public void testLookupResproxyEmpty() {
+    public void testLookupResproxyEmpty() throws IOException {
+        MockWebServer server = new MockWebServer();
+        String mockResponseBody = "{}";
+        server.enqueue(new MockResponse()
+            .setBody(mockResponseBody)
+            .addHeader("Content-Type", "application/json"));
+        server.start();
+
+        OkHttpClient client = new OkHttpClient.Builder()
+            .addInterceptor(chain -> {
+                okhttp3.Request originalRequest = chain.request();
+                okhttp3.HttpUrl newUrl = originalRequest.url().newBuilder()
+                    .scheme("http")
+                    .host(server.getHostName())
+                    .port(server.getPort())
+                    .build();
+                okhttp3.Request newRequest = originalRequest.newBuilder()
+                    .url(newUrl)
+                    .build();
+                return chain.proceed(newRequest);
+            })
+            .build();
+
         IPinfo ii = new IPinfo.Builder()
-            .setToken(System.getenv("IPINFO_TOKEN"))
+            .setToken("test_token")
+            .setClient(client)
             .build();
 
         try {
@@ -329,6 +384,8 @@ public class IPinfoTest {
             );
         } catch (RateLimitedException e) {
             fail(e);
+        } finally {
+            server.shutdown();
         }
     }
 }

@@ -135,6 +135,107 @@ public class Main {
 }
 ```
 
+##### Core API
+
+The library also supports the [Core API](https://ipinfo.io/developers/data-types#core-data), which provides city-level geolocation with nested geo and AS objects. Authentication with your token is required.
+
+```java
+import io.ipinfo.api.IPinfoCore;
+import io.ipinfo.api.errors.RateLimitedException;
+import io.ipinfo.api.model.IPResponseCore;
+
+public class Main {
+    public static void main(String... args) {
+        IPinfoCore ipInfoCore = new IPinfoCore.Builder()
+                .setToken("YOUR TOKEN")
+                .build();
+
+        try {
+            IPResponseCore response = ipInfoCore.lookupIP("8.8.8.8");
+
+            // Print out the IP
+            System.out.println(response.getIp()); // 8.8.8.8
+
+            // Print out geo information
+            System.out.println(response.getGeo().getCity()); // Mountain View
+            System.out.println(response.getGeo().getCountry()); // United States
+
+            // Print out AS information
+            System.out.println(response.getAs().getAsn()); // AS15169
+            System.out.println(response.getAs().getName()); // Google LLC
+        } catch (RateLimitedException ex) {
+            // Handle rate limits here.
+        }
+    }
+}
+```
+
+##### Plus API
+
+The library also supports the [Plus API](https://ipinfo.io/developers/data-types#plus-data), which provides enhanced data including mobile carrier info and privacy detection. Authentication with your token is required.
+
+```java
+import io.ipinfo.api.IPinfoPlus;
+import io.ipinfo.api.errors.RateLimitedException;
+import io.ipinfo.api.model.IPResponsePlus;
+
+public class Main {
+    public static void main(String... args) {
+        IPinfoPlus ipInfoPlus = new IPinfoPlus.Builder()
+                .setToken("YOUR TOKEN")
+                .build();
+
+        try {
+            IPResponsePlus response = ipInfoPlus.lookupIP("8.8.8.8");
+
+            // Print out the IP
+            System.out.println(response.getIp()); // 8.8.8.8
+
+            // Print out geo information
+            System.out.println(response.getGeo().getCity()); // Mountain View
+
+            // Print out mobile and anonymous info
+            System.out.println(response.getMobile());
+            System.out.println(response.getAnonymous().isProxy()); // false
+        } catch (RateLimitedException ex) {
+            // Handle rate limits here.
+        }
+    }
+}
+```
+
+##### Residential Proxy API
+
+The library also supports the [Residential Proxy API](https://ipinfo.io/developers/residential-proxy-api), which allows you to check if an IP address is a residential proxy. Authentication with your token is required.
+
+```java
+import io.ipinfo.api.IPinfo;
+import io.ipinfo.api.errors.RateLimitedException;
+import io.ipinfo.api.model.ResproxyResponse;
+
+public class Main {
+    public static void main(String... args) {
+        IPinfo ipInfo = new IPinfo.Builder()
+                .setToken("YOUR TOKEN")
+                .build();
+
+        try {
+            ResproxyResponse response = ipInfo.lookupResproxy("175.107.211.204");
+
+            // Print out the IP
+            System.out.println(response.getIp()); // 175.107.211.204
+
+            // Print out resproxy details
+            System.out.println(response.getLastSeen()); // 2025-01-20
+            System.out.println(response.getPercentDaysSeen()); // 0.85
+            System.out.println(response.getService()); // Bright Data
+        } catch (RateLimitedException ex) {
+            // Handle rate limits here.
+        }
+    }
+}
+```
+
 #### Caching
 
 This library provides a very simple caching system accessible in `SimpleCache`.
